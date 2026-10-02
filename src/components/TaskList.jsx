@@ -1,67 +1,38 @@
-// Task List Component
-// TODO: Implement task list with filtering and sorting
-
-import React from 'react';
+import { useMemo, useState } from 'react';
 import TaskCard from './TaskCard';
 
-const TaskList = ({ 
-  tasks = [], 
-  loading = false, 
-  onEditTask, 
-  onDeleteTask 
-}) => {
+const priorityRank = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 
-  // TODO: Implement task list functionality
-  // Requirements:
-  // 1. Display tasks in a grid or list layout
-  // 2. Show loading state
-  // 3. Handle empty state
-  // 4. Implement sorting options
+const TaskList = ({ tasks, users, projects, loading, pendingCreates, pendingUpdates, onEditTask, onDeleteTask, onStatusChange, onCreateTask }) => {
+  const [sortBy, setSortBy] = useState('priority');
+  const sortedTasks = useMemo(() => [...tasks].sort((left, right) => {
+    if (sortBy === 'priority') return priorityRank[left.priority] - priorityRank[right.priority];
+    if (sortBy === 'dueDate') return (left.dueDate || '9999').localeCompare(right.dueDate || '9999');
+    if (sortBy === 'title') return left.title.localeCompare(right.title);
+    return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+  }), [sortBy, tasks]);
 
-  if (loading) {
-    return (
-      <div className="task-list-loading">
-        <div className="loading-spinner">Loading tasks...</div>
-      </div>
-    );
+  if (loading) return <div className="loading-state" role="status"><span className="loading-mark" />Loading tasks</div>;
+
+  if (!tasks.length) {
+    return <div className="empty-state"><span className="empty-mark">0</span><h3>No tasks match this view</h3><p>Adjust your filters or create a task to get the board moving.</p><button className="text-button" type="button" onClick={onCreateTask}>Create a task <span aria-hidden="true">→</span></button></div>;
   }
 
-  if (tasks.length === 0) {
-    return (
-      <div className="task-list-empty">
-        <h3>No tasks found</h3>
-        <p>Create your first task to get started!</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="task-list">
-      <div className="task-list-header">
-        <h2>Tasks ({tasks.length})</h2>
-        {/* TODO: Add sorting options */}
-        <div className="sort-options">
-          {/* <select>
-            <option value="createdAt">Sort by Created Date</option>
-            <option value="dueDate">Sort by Due Date</option>
-            <option value="priority">Sort by Priority</option>
-            <option value="title">Sort by Title</option>
-          </select> */}
-        </div>
-      </div>
-
-      <div className="task-grid">
-        {tasks.map(task => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onEdit={() => onEditTask(task.id)}
-            onDelete={() => onDeleteTask(task.id)}
-          />
-        ))}
-      </div>
+  return <>
+    <div className="list-tools"><span>{tasks.length} {tasks.length === 1 ? 'task' : 'tasks'} shown</span><label>Sort by <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="priority">Priority</option><option value="dueDate">Due date</option><option value="title">Title</option><option value="createdAt">Recently added</option></select></label></div>
+    <div className="task-grid">
+      {sortedTasks.map((task) => <TaskCard
+        key={task.id}
+        task={task}
+        users={users}
+        projects={projects}
+        pending={pendingCreates.includes(task.id) || Boolean(pendingUpdates[task.id])}
+        onEdit={() => onEditTask(task.id)}
+        onDelete={() => onDeleteTask(task.id)}
+        onStatusChange={(status) => onStatusChange(task.id, status)}
+      />)}
     </div>
-  );
+  </>;
 };
 
 export default TaskList;

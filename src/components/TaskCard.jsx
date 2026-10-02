@@ -1,120 +1,35 @@
-// Individual Task Card Component
-// TODO: Implement task card display
+import { STATUSES } from '../api/mockApi';
 
-import React from 'react';
+const priorityClass = (priority) => `priority-${(priority || 'low').toLowerCase()}`;
+const initialsFor = (name) => name.split(' ').map((part) => part[0]).join('').slice(0, 2);
+const dueLabel = (date) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(`${date}T00:00:00`));
 
-const TaskCard = ({ task, onEdit, onDelete }) => {
-  
-  // TODO: Implement task card functionality
-  // Requirements:
-  // 1. Display task information in a card layout
-  // 2. Show different styles based on priority/status
-  // 3. Handle optimistic updates (show loading/pending states)
-  // 4. Show task-type specific information
-  // 5. Action buttons (edit, delete)
+const TaskCard = ({ task, users, projects, pending, onEdit, onDelete, onStatusChange }) => {
+  const assignee = users.find((user) => user.id === task.assigneeId);
+  const project = projects.find((item) => item.id === task.projectId);
+  const overdue = task.dueDate && new Date(`${task.dueDate}T23:59:59`) < new Date() && task.status !== 'Done';
+  const subtaskCount = task.subtasks?.length || 0;
+  const completedSubtasks = task.subtasks?.filter((item) => item.completed).length || 0;
+  let detail = '';
+  if (task.taskType === 'Bug' && task.severity) detail = `Severity: ${task.severity}`;
+  if (task.taskType === 'Feature' && task.acceptanceCriteria?.length) detail = `${task.acceptanceCriteria.length} acceptance criteria`;
+  if (task.taskType === 'Enhancement') detail = task.proposedBehavior || '';
+  if (task.taskType === 'Research') detail = task.expectedOutcomes || '';
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      'Low': '#22c55e',
-      'Medium': '#f59e0b', 
-      'High': '#ef4444',
-      'Critical': '#dc2626'
-    };
-    return colors[priority] || '#6b7280';
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'Todo': '#6b7280',
-      'In Progress': '#3b82f6',
-      'Review': '#f59e0b',
-      'Done': '#22c55e'
-    };
-    return colors[status] || '#6b7280';
-  };
-
-  // TODO: Check if this is an optimistic update
-
-  return (
-    <div className={`task-card ${task.taskType?.toLowerCase()}`}>
-      {/* TODO: Show optimistic update indicator */}
-
-      <div className="task-card-header">
-        <div className="task-meta">
-          <span 
-            className="task-type"
-            style={{ backgroundColor: getPriorityColor(task.priority) }}
-          >
-            {task.taskType}
-          </span>
-          <span 
-            className="task-status"
-            style={{ color: getStatusColor(task.status) }}
-          >
-            {task.status}
-          </span>
-        </div>
-        
-        <div className="task-actions">
-          <button onClick={onEdit} className="btn-edit">✏️</button>
-          <button onClick={onDelete} className="btn-delete">🗑️</button>
-        </div>
-      </div>
-
-      <div className="task-content">
-        <h3 className="task-title">{task.title}</h3>
-        
-        {task.description && (
-          <p className="task-description">
-            {task.description.length > 100 
-              ? `${task.description.substring(0, 100)}...`
-              : task.description
-            }
-          </p>
-        )}
-
-        {/* TODO: Show task-type specific info */}
-        {task.taskType === 'Bug' && task.severity && (
-          <div className="task-severity">
-            Severity: <span className={`severity-${task.severity?.toLowerCase()}`}>
-              {task.severity}
-            </span>
-          </div>
-        )}
-
-        {task.taskType === 'Feature' && task.acceptanceCriteria?.length > 0 && (
-          <div className="task-criteria">
-            {task.acceptanceCriteria.length} acceptance criteria
-          </div>
-        )}
-
-        {/* Subtasks count */}
-        {task.subtasks?.length > 0 && (
-          <div className="task-subtasks">
-            Subtasks: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
-          </div>
-        )}
-      </div>
-
-      <div className="task-footer">
-        <div className="task-assignee">
-          {task.assigneeId ? `Assigned to: User ${task.assigneeId}` : 'Unassigned'}
-        </div>
-        
-        {task.dueDate && (
-          <div className={`task-due-date ${new Date(task.dueDate) < new Date() ? 'overdue' : ''}`}>
-            Due: {new Date(task.dueDate).toLocaleDateString()}
-          </div>
-        )}
-
-        <div className="task-priority">
-          Priority: <span style={{ color: getPriorityColor(task.priority) }}>
-            {task.priority}
-          </span>
-        </div>
-      </div>
+  return <article className={`task-card ${task.taskType?.toLowerCase()} ${pending ? 'is-pending' : ''}`}>
+    {pending && <span className="pending-label" role="status" aria-label="Saving task" title="Saving task" />}
+    <div className="task-card-header">
+      <div className="task-tags"><span className={`type-tag type-${task.taskType?.toLowerCase()}`}>{task.taskType}</span><span className={`priority-tag ${priorityClass(task.priority)}`}>{task.priority}</span></div>
+      <div className="task-actions"><button className="quiet-action" type="button" onClick={onEdit} aria-label={`Edit ${task.title}`}>Edit</button><button className="quiet-action danger-action" type="button" onClick={onDelete} aria-label={`Delete ${task.title}`}>Delete</button></div>
     </div>
-  );
+    <div className="task-content"><h3 className="task-title">{task.title}</h3>{task.description && <p className="task-description">{task.description}</p>}{detail && <p className="task-detail">{detail}</p>}</div>
+    {subtaskCount > 0 && <div className="subtask-progress"><div className="subtask-track"><span style={{ width: `${(completedSubtasks / subtaskCount) * 100}%` }} /></div><span>{completedSubtasks}/{subtaskCount} subtasks</span></div>}
+    {task.attachments?.length > 0 && <div className="attachment-count">{task.attachments.length} attachment{task.attachments.length === 1 ? '' : 's'}</div>}
+    <footer className="task-footer">
+      <div className="task-owner"><span className={`avatar ${assignee ? 'avatar-coral' : 'avatar-empty'}`}>{assignee ? initialsFor(assignee.name) : '?'}</span><span>{assignee?.name || 'Unassigned'}<small>{project?.name || 'No project'}</small></span></div>
+      <div className="task-card-meta">{task.dueDate && <time className={overdue ? 'due-overdue' : ''} dateTime={task.dueDate}>{overdue ? 'Overdue · ' : 'Due '}{dueLabel(task.dueDate)}</time>}<label className="status-select-label"><span className="sr-only">Status for {task.title}</span><select value={task.status || 'Todo'} onChange={(event) => onStatusChange(event.target.value)}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label></div>
+    </footer>
+  </article>;
 };
 
 export default TaskCard;

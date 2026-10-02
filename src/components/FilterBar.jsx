@@ -1,142 +1,36 @@
-// Filter Bar Component
-// TODO: Implement advanced filtering controls
+import { useEffect, useState } from 'react';
+import { STATUSES, TASK_TYPES } from '../api/mockApi';
 
-import React from 'react';
-import { TASK_TYPES, PRIORITIES, STATUSES } from '../api/mockApi';
+const FilterBar = ({ filters, projects, users, onFiltersChange }) => {
+  const [search, setSearch] = useState(filters.search || '');
 
-const FilterBar = ({ 
-  filters = {}, 
-  projects = [], 
-  users = [], 
-  onFiltersChange 
-}) => {
+  useEffect(() => setSearch(filters.search || ''), [filters.search]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (search !== filters.search) onFiltersChange({ ...filters, search });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [filters, onFiltersChange, search]);
 
-  // TODO: Implement filter functionality
-  // Requirements:
-  // 1. Project filter dropdown
-  // 2. Assignee filter dropdown  
-  // 3. Status filter dropdown
-  // 4. Task type filter dropdown
-  // 5. Search input with debouncing
-  // 6. Clear all filters button
-  // 7. Show active filter count
-
-  const [searchInput, setSearchInput] = React.useState(filters.search || '');
-
-  // TODO: Implement debounced search with useEffect and setTimeout
-
-  const handleFilterChange = (filterKey, value) => {
-    onFiltersChange({
-      ...filters,
-      [filterKey]: value
-    });
+  const handleChange = (key, value) => onFiltersChange({ ...filters, [key]: value });
+  const project = projects.find((item) => item.id === filters.projectId);
+  const visibleUsers = project ? users.filter((user) => project.userIds.includes(user.id)) : users;
+  const activeCount = [filters.projectId, filters.assigneeId, filters.status !== 'all', filters.taskType !== 'all', filters.search].filter(Boolean).length;
+  const clearAll = () => {
+    setSearch('');
+    onFiltersChange({ projectId: null, assigneeId: null, status: 'all', taskType: 'all', search: '' });
   };
 
-  const clearAllFilters = () => {
-    setSearchInput('');
-    onFiltersChange({
-      projectId: null,
-      assigneeId: null,
-      status: 'all',
-      taskType: 'all',
-      search: ''
-    });
-  };
-
-  // TODO: Count active filters for display
-
-  return (
-    <div className="filter-bar">
-      <div className="filter-controls">
-        {/* Search Input */}
-        <div className="filter-group">
-          <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="search-input"
-          />
-        </div>
-
-        {/* Project Filter */}
-        <div className="filter-group">
-          <select
-            value={filters.projectId || ''}
-            onChange={(e) => handleFilterChange('projectId', e.target.value || null)}
-            className="filter-select"
-          >
-            <option value="">All Projects</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Assignee Filter */}
-        <div className="filter-group">
-          <select
-            value={filters.assigneeId || ''}
-            onChange={(e) => handleFilterChange('assigneeId', e.target.value || null)}
-            className="filter-select"
-          >
-            <option value="">All Assignees</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Status Filter */}
-        <div className="filter-group">
-          <select
-            value={filters.status || 'all'}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Statuses</option>
-            {STATUSES.map(status => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Task Type Filter */}
-        <div className="filter-group">
-          <select
-            value={filters.taskType || 'all'}
-            onChange={(e) => handleFilterChange('taskType', e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Types</option>
-            {TASK_TYPES.map(type => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Clear Filters */}
-        <div className="filter-group">
-          <button 
-            onClick={clearAllFilters}
-            className="clear-filters-btn"
-            // TODO: Disable when no active filters
-          >
-            Clear Filters
-            {/* TODO: Show count of active filters */}
-          </button>
-        </div>
-      </div>
+  return <section className="filter-panel" aria-label="Task filters">
+    <div className="filter-topline"><span className="filter-caption">FILTER & FIND</span><button className="clear-button" type="button" onClick={clearAll} disabled={!activeCount}>Clear all{activeCount > 0 && <span>{activeCount}</span>}</button></div>
+    <div className="filter-controls">
+      <label className="search-control"><span className="sr-only">Search tasks</span><span className="search-glyph" aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks or details" /></label>
+      <label className="filter-control"><span>Project</span><select value={filters.projectId || ''} onChange={(event) => handleChange('projectId', event.target.value || null)}><option value="">All projects</option>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className="filter-control"><span>Assignee</span><select value={filters.assigneeId || ''} onChange={(event) => handleChange('assigneeId', event.target.value || null)}><option value="">Anyone</option>{visibleUsers.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
+      <label className="filter-control"><span>Status</span><select value={filters.status || 'all'} onChange={(event) => handleChange('status', event.target.value)}><option value="all">Any status</option>{STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+      <label className="filter-control"><span>Type</span><select value={filters.taskType || 'all'} onChange={(event) => handleChange('taskType', event.target.value)}><option value="all">Any type</option>{TASK_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
     </div>
-  );
+  </section>;
 };
 
 export default FilterBar;
